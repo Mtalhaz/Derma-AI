@@ -16,6 +16,42 @@ The machine learning pipeline is implemented with **Python, PyTorch and Torchvis
 
 ---
 
+## Application Preview
+
+The Derma AI application provides a complete workflow from image analysis to explainability, analysis history, and educational medical information.
+
+### Home Screen
+
+The main application screen where users can start a new skin lesion analysis.
+
+![Derma AI Home Screen](screenshots/home.png)
+
+### Analysis Result
+
+Displays the result produced by the analysis pipeline after processing an image.
+
+![Derma AI Analysis Result](screenshots/analysis_result.png)
+
+### Grad-CAM Explainability
+
+Grad-CAM provides a visual interpretation of the image regions that contributed to the classification prediction.
+
+![Derma AI Grad-CAM](screenshots/gradcam.png)
+
+### Analysis History
+
+Users can review previous analysis results through the application's analysis history.
+
+![Derma AI Analysis History](screenshots/analysis_history.png)
+
+### Medical Guide
+
+The application includes an educational medical guide with information about skin conditions covered by the system.
+
+![Derma AI Medical Guide](screenshots/medical_guide.png)
+
+---
+
 ## System Architecture
 
 ```text
@@ -138,6 +174,13 @@ training/lesion_classification/train.py
 
 ```text
 Derma-AI/
+│
+├── screenshots/
+│   ├── home.png
+│   ├── analysis_result.png
+│   ├── gradcam.png
+│   ├── analysis_history.png
+│   └── medical_guide.png
 │
 ├── training/
 │   ├── lesion_detection/
