@@ -1,32 +1,18 @@
 # Derma AI
 
-> Two-stage deep learning system for skin lesion detection and classification, with a Flutter-based application interface and Grad-CAM explainability support.
+> Two-stage deep learning pipeline for skin lesion detection and seven-class classification, integrated with a Flutter application and Grad-CAM explainability.
 
 ## Overview
 
-**Derma AI** is a computer vision and deep learning project designed to analyze skin lesion images through a two-stage pipeline:
+**Derma AI** is an end-to-end computer vision project for skin lesion image analysis. The system uses two separate deep learning models in sequence:
 
-1. **Lesion Detection** — determines whether the input image contains a skin lesion.
-2. **Lesion Classification** — classifies the detected lesion into one of seven categories from the HAM10000 dataset.
+1. **Lesion Detection** — a MobileNetV3-Small binary classifier determines whether an image contains a lesion.
+2. **Lesion Classification** — an EfficientNet-B2 classifier assigns detected lesions to one of seven HAM10000 categories.
+3. **Explainability** — Grad-CAM provides a visual interpretation of regions contributing to the classification prediction.
 
-The machine learning components are implemented with **Python and PyTorch**, while the user-facing application is built with **Flutter and Dart**. The repository also contains a Grad-CAM API component for visual model explainability.
+The machine learning pipeline is implemented with **Python, PyTorch and Torchvision**. The application layer is implemented with **Flutter and Dart**.
 
-> **Important:** This project is intended for educational and research purposes. It is not a medical diagnostic system and must not be used as a substitute for evaluation by a qualified healthcare professional.
-
----
-
-## Key Features
-
-- Two-stage skin lesion analysis pipeline
-- Seven-class lesion classification
-- Transfer learning with **EfficientNet-B2**
-- HAM10000-based classification workflow
-- Data preprocessing and augmentation
-- Class balancing and weighted sampling
-- Validation using **Macro F1-score**
-- Early stopping and best-model checkpointing
-- **Grad-CAM** support for model interpretability
-- Flutter mobile application interface
+> **Medical disclaimer:** This project is for educational and research purposes only. It is not a medical diagnostic device and must not be used as a substitute for evaluation by a qualified healthcare professional.
 
 ---
 
@@ -36,105 +22,115 @@ The machine learning components are implemented with **Python and PyTorch**, whi
                          Input Image
                               │
                               ▼
-                    ┌───────────────────┐
-                    │ Lesion Detection  │
-                    │      Model        │
-                    └─────────┬─────────┘
+                 ┌─────────────────────────┐
+                 │   Stage 1: Detection    │
+                 │    MobileNetV3-Small    │
+                 │     Binary Classifier   │
+                 └────────────┬────────────┘
                               │
                     ┌─────────┴─────────┐
                     │                   │
-                 No Lesion        Lesion Detected
+             Lesion Detected       No Lesion
                     │                   │
                     ▼                   ▼
-                  Result       ┌───────────────────┐
-                               │ Lesion Classification │
-                               │      EfficientNet-B2  │
-                               └─────────┬─────────┘
-                                         │
-                                         ▼
-                                  Predicted Class
-                                         │
-                                         ▼
-                                  Grad-CAM Analysis
+          ┌──────────────────┐       Result
+          │ Stage 2:         │
+          │ Classification   │
+          │ EfficientNet-B2  │
+          │ 7 Classes        │
+          └────────┬─────────┘
+                   │
+                   ▼
+            Predicted Class
+                   │
+                   ▼
+             Grad-CAM Map
 ```
 
 ---
 
-## Classification Classes
+## Models
 
-The classification stage uses the seven diagnostic categories provided by the HAM10000 dataset:
+### Stage 1 — Lesion Detection
 
-| Code | Category |
-|------|----------|
-| `AKIEC` | Actinic Keratoses and Intraepithelial Carcinoma |
-| `BCC` | Basal Cell Carcinoma |
-| `BKL` | Benign Keratosis-like Lesions |
-| `DF` | Dermatofibroma |
-| `MEL` | Melanoma |
-| `NV` | Melanocytic Nevi |
-| `VASC` | Vascular Lesions |
+**Architecture:** MobileNetV3-Small
 
----
+**Task:** Binary classification
 
-## Machine Learning Pipeline
+| Label | Meaning |
+|---|---|
+| `0` | `lezyon_degil` |
+| `1` | `lezyon` |
 
-The classification workflow includes:
+The training pipeline uses ImageNet-pretrained weights, weighted sampling, augmentation, two-stage fine-tuning, AUC-based checkpoint selection and validation-based threshold optimization.
 
-- Image preprocessing
-- Data augmentation
-- Group-based train/validation splitting using lesion IDs
-- Class balancing
-- Weighted sampling
-- Cross-entropy loss
-- AdamW optimization
-- Cosine Annealing Warm Restarts learning-rate scheduling
-- Macro F1-score evaluation
-- Early stopping
-- Best-model checkpointing based on validation Macro F1-score
-
-### Model
-
-The lesion classification model is based on **EfficientNet-B2** using transfer learning.
-
-Model weights and large dataset files are intentionally excluded from the repository because of their size. The repository therefore contains the supporting source code and application structure without committing large binary artifacts.
-
----
-
-## Explainability
-
-Derma AI includes a **Grad-CAM** component to support visual interpretation of the classification model.
-
-Grad-CAM can be used to highlight image regions that contribute to a model's prediction, providing an additional interpretability layer for the computer vision pipeline.
-
-The repository contains the corresponding API implementation under:
+Training source:
 
 ```text
-flutter_application_HAM10000/gradcam_api.py
+training/lesion_detection/train.py
+```
+
+### Stage 2 — Lesion Classification
+
+**Architecture:** EfficientNet-B2
+
+**Task:** Seven-class classification
+
+The model uses ImageNet-pretrained weights and a leakage-aware split based on `lesion_id` from HAM10000.
+
+Training source:
+
+```text
+training/lesion_classification/train.py
 ```
 
 ---
 
-## Technology Stack
+## HAM10000 Classes
 
-### Machine Learning
+| Code | Description |
+|---|---|
+| `AKIEC` | Actinic keratoses / intraepithelial carcinoma |
+| `BCC` | Basal cell carcinoma |
+| `BKL` | Benign keratosis-like lesions |
+| `DF` | Dermatofibroma |
+| `MEL` | Melanoma |
+| `NV` | Melanocytic nevi |
+| `VASC` | Vascular lesions |
 
-- Python
-- PyTorch
-- Torchvision
+---
+
+## Training Pipeline
+
+### Detection Model
+
+- MobileNetV3-Small
+- ImageNet transfer learning
+- Binary `BCEWithLogitsLoss`
+- WeightedRandomSampler
+- Lesion-specific low-quality augmentation
+- Gaussian noise augmentation
+- Stage 1 classifier training
+- Stage 2 fine-tuning
+- Validation AUC model selection
+- F1-based threshold optimization
+- PyTorch checkpoint export
+- TorchScript export
+
+### Classification Model
+
 - EfficientNet-B2
-- Grad-CAM
-- OpenCV
-- NumPy
-- Pillow
-
-### Application
-
-- Flutter
-- Dart
-
-### Dataset
-
-- HAM10000 — Human Against Machine with 10000 training images
+- ImageNet transfer learning
+- `GroupShuffleSplit` using `lesion_id`
+- WeightedRandomSampler
+- Random crop, rotation and flip augmentation
+- Controlled color augmentation
+- Cross-entropy loss
+- AdamW optimizer
+- Cosine Annealing Warm Restarts
+- Macro F1 evaluation
+- Early stopping
+- Best-model checkpointing
 
 ---
 
@@ -143,44 +139,96 @@ flutter_application_HAM10000/gradcam_api.py
 ```text
 Derma-AI/
 │
+├── training/
+│   ├── lesion_detection/
+│   │   └── train.py
+│   │
+│   └── lesion_classification/
+│       └── train.py
+│
 ├── flutter_application_HAM10000/
 │   ├── lib/                  # Flutter application source
 │   ├── assets/               # Application assets
-│   ├── gradcam_api.py        # Grad-CAM API component
+│   ├── gradcam_api.py        # Grad-CAM API
 │   ├── android/              # Android platform files
 │   ├── ios/                  # iOS platform files
 │   ├── linux/                # Linux platform files
 │   ├── macos/                # macOS platform files
-│   ├── pubspec.yaml          # Flutter dependencies and configuration
+│   ├── pubspec.yaml          # Flutter configuration
 │   └── test/                 # Flutter tests
 │
 ├── convert_model.py          # Model conversion utility
 ├── inspect_model.py          # Model inspection utility
-├── test_arch.py              # Model architecture testing utility
+├── test_arch.py              # Architecture testing utility
 ├── requirements.txt          # Python dependencies
-├── .gitignore                # Repository and environment exclusions
-└── README.md                 # Project documentation
+├── .gitignore
+└── README.md
 ```
+
+---
+
+## Dataset
+
+The seven-class classification model uses the **HAM10000** dataset.
+
+The lesion detection model uses HAM10000 images as positive examples together with additional non-lesion image datasets as negative examples during training.
+
+Datasets are **not included** in this repository. Training scripts use configurable dataset roots instead of machine-specific absolute paths.
+
+### Classification dataset layout
+
+The classification training script expects a structure similar to:
+
+```text
+ham10000/
+├── HAM10000_metadata.csv
+└── images_all/
+    ├── image_001.jpg
+    ├── image_002.jpg
+    └── ...
+```
+
+The root can be configured with:
+
+```text
+DERMA_HAM10000_ROOT
+```
+
+### Detection dataset layout
+
+The detection training script can use the Kaggle-style dataset structure defined in its configuration. The root can be configured with:
+
+```text
+DERMA_DATASET_DIR
+```
+
+Output paths can be configured with:
+
+```text
+DERMA_OUTPUT_DIR
+```
+
+This keeps the training code portable across Kaggle, local machines and other environments without exposing personal Windows paths.
 
 ---
 
 ## Installation
 
-### Python Environment
+### Python
 
-Create and activate a virtual environment, then install the Python dependencies:
+Create a virtual environment:
 
 ```bash
 python -m venv .venv
 ```
 
-**Windows:**
+Windows:
 
 ```bash
 .venv\Scripts\activate
 ```
 
-**Linux / macOS:**
+Linux/macOS:
 
 ```bash
 source .venv/bin/activate
@@ -192,56 +240,101 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
-### Flutter Application
-
-Make sure Flutter is installed and available in your system PATH. Then move into the application directory:
+### Flutter
 
 ```bash
 cd flutter_application_HAM10000
 flutter pub get
-```
-
-Run the application with:
-
-```bash
 flutter run
 ```
 
-> The exact runtime configuration may depend on the model files, API configuration, and execution environment used with the project.
+The exact runtime configuration depends on the available model artifacts and API configuration.
 
 ---
 
-## Dataset
+## Training
 
-The classification pipeline was developed using the **HAM10000** skin lesion image dataset.
+### Train lesion detection model
 
-The dataset itself is **not included** in this repository. This keeps the repository lightweight and avoids committing a large collection of image files.
+```bash
+python training/lesion_detection/train.py
+```
 
-If you work with the project locally, place the dataset and model artifacts according to the configuration expected by the training/inference workflow.
+### Train seven-class classification model
+
+```bash
+python training/lesion_classification/train.py
+```
+
+Model weights and generated artifacts are intentionally excluded from source control when they are too large for normal GitHub repository usage.
 
 ---
 
-## Project Goals
+## Explainability
 
-Derma AI was developed to demonstrate an end-to-end application of deep learning to medical image analysis, combining:
+The project includes a Grad-CAM component for visual model interpretation.
 
-- Computer vision
-- Transfer learning
-- Image classification
-- Model evaluation
-- Explainable AI
-- Mobile application development
+```text
+flutter_application_HAM10000/gradcam_api.py
+```
 
-The project is structured to demonstrate how a trained computer vision model can be integrated into an application-oriented workflow rather than remaining as an isolated training experiment.
+Grad-CAM highlights image regions that contribute to the classification model's prediction. It is intended as an interpretability aid and should not be interpreted as a clinical explanation or diagnostic evidence.
+
+---
+
+## Technology Stack
+
+**Machine Learning**
+
+- Python
+- PyTorch
+- Torchvision
+- EfficientNet-B2
+- MobileNetV3-Small
+- Grad-CAM
+- OpenCV
+- NumPy
+- Pandas
+- scikit-learn
+- Pillow
+
+**Application**
+
+- Flutter
+- Dart
+
+**Dataset**
+
+- HAM10000
 
 ---
 
 ## Limitations
 
-- Model predictions are not medical diagnoses.
-- Performance can vary depending on image quality, acquisition conditions, and lesion characteristics.
-- The project is based on a specific dataset and may not generalize to every real-world population or imaging environment.
-- Large model and dataset artifacts are not included in the repository.
+- Predictions are not medical diagnoses.
+- Dataset-specific performance does not guarantee real-world clinical performance.
+- Image quality and acquisition conditions can affect predictions.
+- Dataset imbalance and domain shift may affect generalization.
+- Grad-CAM visualizations do not establish causality or clinical validity.
+- Large datasets and model binaries are not stored in the repository.
+
+---
+
+## Project Purpose
+
+Derma AI demonstrates an end-to-end medical computer vision workflow combining:
+
+- Deep learning
+- Transfer learning
+- Binary image classification
+- Multi-class image classification
+- Dataset balancing
+- Leakage-aware validation
+- Model evaluation
+- Explainable AI
+- Mobile application development
+
+The project is structured to show how trained computer vision models can be integrated into an application-oriented pipeline.
 
 ---
 
